@@ -1,0 +1,77 @@
+# import libraries
+import numpy as np
+import random as random
+import scipy.stats as stats
+import scipy.io as spio
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import zero_one_loss
+from sklearn.cross_validation import StratifiedKFold
+from sklearn.metrics import confusion_matrix
+
+# load fisher vectors
+FVs = '/Users/sagarsetru/Documents/Princeton/cos424/hw1/voxResources/myData/fisherVectors/numClusters10_exemplarSize3/mfc.mat'
+# load labels
+LBs = '/Users/sagarsetru/Documents/Princeton/cos424/hw1/voxResources/myData/fisherVectors/numClusters10_exemplarSize3/LB.mat'
+
+# load into arrays
+mfcc = spio.loadmat(FVs)['FV']
+labels = spio.loadmat(LBs)['LB'][0]
+N = mfcc.shape[1]
+
+'''
+TEidx = np.array(random.sample(range(0,N), int(N/10)))
+X_TE = mfcc[:,TEidx]
+X_TR = mfcc[:,[i for i in range(0,N) if i not in TEidx]]
+Y_TE = labels[TEidx]
+Y_TR = labels[[i for i in range(0,N) if i not in TEidx]]
+rf = RandomForestClassifier(n_estimators = maxLearners, max_depth = maxDepth, warm_start = False)
+rf.fit(X_TR.T,Y_TR) # did tranpose
+predictionsRF = rf.predict(X_TE.T)
+errorRF = zero_one_loss(predictionsRF, Y_TE)
+print 'error Random Forest Classifier:'
+print errorRF
+'''
+
+# cross validation with
+k_folds = 10
+skf = StratifiedKFold(labels,n_folds=k_folds)
+# random forest classifer learning
+maxLearners = 100
+maxDepth = 5
+avgErrRF = 0.0
+# KNN learning
+k = 10
+avgErrKNN = 0.0
+# loop over training and testing indices
+for TRi,TEi in skf:
+    # assign training and testing data
+    X_TR = mfcc[:,TRi]
+    X_TE = mfcc[:,TEi]
+    Y_TR = labels[TRi]
+    Y_TE = labels[TEi]
+    # random forest classifier
+    rf = RandomForestClassifier(n_estimators = maxLearners, max_depth = maxDepth, warm_start = False)
+    # fit the random forest classifer to the training data
+    rf.fit(X_TR.T,Y_TR)
+    # make prediction
+    predRF = rf.predict(X_TE.T)
+    # determine error of classification
+    errorRF = zero_one_loss(predRF,Y_TE)
+    print 'Error from Random Forest Classifier:'
+    print errorRF
+    avgErrRF += (1./k_folds) * errorRF
+    # KNN classifier
+    knn = KNeighborsClassifier(n_neighbors=k)
+    knn.fit(X_TR.T,Y_TR)
+    predKNN = knn.predict(X_TE.T)
+    errorKNN = zero_one_loss(predKNN,Y_TE)
+    print 'Error from KNN:'
+    print errorKNN
+    avgErrKNN += (1./k_folds) * errorKNN
+#...
+
+print 'Average error from Random Forest Classifier:'
+print '%4.2f%s' % (100 * avgErrRF, '%')
+print 'Average error from KNN:'
+print '%4.2f%s' % (100 * avgErrKNN, '%')
